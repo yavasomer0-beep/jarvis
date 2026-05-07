@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JARVIS - Sadece Benim</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+    body { margin:0; background:#000; color:#0ff; font-family:'Orbitron', sans-serif; height:100vh; overflow:hidden; }
+    #login { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.98); display:flex; align-items:center; justify-content:center; z-index:1000; }
+    .box { background:#001122; padding:50px 40px; border:2px solid #0ff; border-radius:20px; text-align:center; box-shadow:0 0 50px #0ff; }
+    input { padding:18px; width:320px; background:#000; border:2px solid #0ff; color:#0ff; font-size:1.2em; text-align:center; }
+    button { padding:15px 50px; background:#0ff; color:#000; border:none; font-size:1.2em; font-weight:bold; cursor:pointer; margin-top:10px; }
+    .main { display:none; padding:30px; text-align:center; }
+    #output { margin:30px auto; max-width:800px; background:#001111; padding:25px; border:1px solid #0ff; border-radius:15px; min-height:180px; text-align:left; font-size:1.25em; }
+  </style>
+</head>
+<body>
+
+  <div id="login">
+    <div class="box">
+      <h1>🔒 JARVIS GÜVENLİ ALAN</h1>
+      <p>Patron kimliğini doğrula</p>
+      <input type="password" id="pass" placeholder="Şifreni gir" autofocus>
+      <br><button onclick="login()">GİRİŞ YAP</button>
+      <p id="err" style="color:#f66; margin-top:15px;"></p>
+    </div>
+  </div>
+
+  <div id="main" class="main">
+    <h1>🟢 JARVIS AKTİF</h1>
+    <p style="color:#0f0;">Sadece senin için • Güvenli mod</p>
+    
+    <button onclick="startListening()" style="font-size:1.4em; padding:20px 60px; margin:20px;">🎤 Sesli Komut Ver (J tuşu)</button>
+    
+    <div id="output"></div>
+  </div>
+
+  <script>
+    const MASTER_PASS = "jarvis2026";   // ← BURAYI KENDİ GÜÇLÜ ŞİFRENLE DEĞİŞTİR (mutlaka!)
+
+    function login() {
+      if (document.getElementById("pass").value === MASTER_PASS) {
+        document.getElementById("login").style.display = "none";
+        document.getElementById("main").style.display = "block";
+      } else {
+        document.getElementById("err").innerHTML = "❌ Yanlış şifre!";
+      }
+    }
+
+    // Sesli komut
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = "tr-TR";
+
+    async function startListening() {
+      document.getElementById("output").innerHTML += "<p><strong>Dinliyorum...</strong></p>";
+      recognition.start();
+    }
+
+    recognition.onresult = async (event) => {
+      const command = event.results[0][0].transcript;
+      document.getElementById("output").innerHTML += `<p><strong>Sen:</strong> ${command}</p>`;
+      
+      const res = await fetch("/api/jarvis", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({prompt: command})
+      });
+      const data = await res.json();
+      
+      document.getElementById("output").innerHTML += `<p><strong>Jarvis:</strong> ${data.reply}</p>`;
+      
+      const utterance = new SpeechSynthesisUtterance(data.reply);
+      utterance.lang = "tr-TR";
+      speechSynthesis.speak(utterance);
+    };
+
+    // J tuşu ile sesli komut
+    document.addEventListener("keypress", e => {
+      if (e.key.toLowerCase() === "j") startListening();
+    });
+  </script>
+</body>
+</html>
