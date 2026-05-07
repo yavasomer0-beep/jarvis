@@ -7,59 +7,76 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
     body { margin:0; background:#000; color:#0ff; font-family:'Orbitron', sans-serif; height:100vh; overflow:hidden; }
+    
     #login { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.98); display:flex; align-items:center; justify-content:center; z-index:1000; }
-    .box { background:#001122; padding:50px; border:2px solid #0ff; border-radius:20px; text-align:center; box-shadow:0 0 60px #0ff; }
-    input { padding:20px; width:340px; background:#000; border:2px solid #0ff; color:#0ff; font-size:1.3em; text-align:center; }
+    .box { background:#001122; padding:50px; border:3px solid #0ff; border-radius:20px; text-align:center; box-shadow:0 0 60px #0ff; }
+    input { padding:20px; width:350px; background:#000; border:2px solid #0ff; color:#0ff; font-size:1.3em; text-align:center; }
     button { padding:18px 60px; background:#0ff; color:#000; border:none; font-size:1.3em; font-weight:bold; cursor:pointer; margin-top:20px; }
-    .main { display:none; padding:30px; text-align:center; }
-    #output { margin:30px auto; max-width:900px; background:#001111; padding:25px; border:1px solid #0ff; border-radius:15px; min-height:250px; text-align:left; font-size:1.3em; line-height:1.6; }
+    
+    .main { display:none; padding:20px; text-align:center; }
+    #output { margin:20px auto; max-width:900px; background:#001111; padding:25px; border:1px solid #0ff; border-radius:15px; min-height:300px; text-align:left; font-size:1.25em; line-height:1.6; overflow-y:auto; }
+    button.big { font-size:1.5em; padding:25px 80px; margin:15px; }
   </style>
 </head>
 <body>
 
+  <!-- GÜVENLİK EKRANI -->
   <div id="login">
     <div class="box">
-      <h1>🔒 JARVIS GÜVENLİ SİSTEM</h1>
-      <p>Patron doğrulaması</p>
+      <h1>🔒 JARVIS GÜVENLİ ALAN</h1>
+      <p>Patron kimliğini doğrula</p>
       <input type="password" id="pass" placeholder="Şifreni gir" autofocus>
       <br><button onclick="login()">GİRİŞ YAP</button>
-      <p id="err" style="color:#f66; margin-top:20px;"></p>
+      <p id="err" style="color:#f66; margin-top:15px;"></p>
     </div>
   </div>
 
+  <!-- ANA EKRAN -->
   <div id="main" class="main">
     <h1>🟢 JARVIS AKTİF</h1>
-    <button onclick="startListening()" style="font-size:1.5em; padding:20px 70px; margin:20px;">🎤 Sesli Komut Ver</button>
+    <button onclick="startListening()" class="big">🎤 SESLİ KOMUT VER</button>
     <p style="color:#0a0;">Veya <strong>J</strong> tuşuna bas</p>
     <div id="output"></div>
   </div>
 
   <script>
-    const MASTER_PASS = "buraya_kendi_güçlü_şifreni_yaz";   // ← MUTLAKA DEĞİŞTİR!
+    // ================== AYARLAR ==================
+    const MASTER_PASS = "buraya_kendi_güçlü_şifreni_yaz123";   // ← MUTLAKA DEĞİŞTİR!
     const API_KEY = "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";
 
+    // ================== GİRİŞ ==================
     function login() {
       if (document.getElementById("pass").value === MASTER_PASS) {
         document.getElementById("login").style.display = "none";
         document.getElementById("main").style.display = "block";
+        addMessage("jarvis", "Hoş geldin patron. Sistem hazır.");
       } else {
-        document.getElementById("err").textContent = "❌ Yanlış şifre!";
+        document.getElementById("err").innerHTML = "❌ Yanlış şifre!";
       }
     }
 
+    // ================== MESAJ EKLE ==================
+    function addMessage(sender, text) {
+      const output = document.getElementById("output");
+      const div = document.createElement("div");
+      div.innerHTML = `<strong>${sender === "user" ? "Sen" : "Jarvis"}:</strong> ${text}`;
+      output.appendChild(div);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    // ================== SESLİ KOMUT ==================
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = "tr-TR";
 
     async function startListening() {
       const output = document.getElementById("output");
-      output.innerHTML += "<p><strong>🔴 Dinliyorum...</strong></p>";
+      addMessage("system", "🔴 Dinliyorum...");
       recognition.start();
     }
 
     recognition.onresult = async (event) => {
       const command = event.results[0][0].transcript;
-      const output = document.getElementById("output");
-      output.innerHTML += `<p><strong>Sen:</strong> ${command}</p>`;
+      addMessage("user", command);
 
       try {
         const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -71,28 +88,40 @@
           body: JSON.stringify({
             model: "openai/gpt-4o-mini",
             messages: [
-              { role: "system", content: "Sen Jarvis'sin. Kısa, esprili ve Türkçe cevap ver. Emoji kullanma." },
+              { role: "system", content: "Sen Jarvis'sin. Çok kısa, esprili ve yardımcı cevap ver. Emoji kullanma. Türkçe konuş." },
               { role: "user", content: command }
             ],
             max_tokens: 700
           })
         });
 
-        const data = await res.json();
-        const answer = data.choices[0].message.content;
-        output.innerHTML += `<p><strong>Jarvis:</strong> ${answer}</p>`;
+        if (!res.ok) throw new Error("API Hatası");
 
-        const speech = new SpeechSynthesisUtterance(answer);
-        speech.lang = "tr-TR";
-        speech.rate = 1.05;
-        speechSynthesis.speak(speech);
+        const data = await res.json();
+        let answer = data.choices[0].message.content;
+
+        addMessage("jarvis", answer);
+
+        // Sesli cevap (emoji temizle)
+        const cleanText = answer.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}]/gu, "");
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = "tr-TR";
+        utterance.rate = 1.05;
+        speechSynthesis.speak(utterance);
+
       } catch (e) {
-        output.innerHTML += `<p><strong>Hata:</strong> API bağlantısı başarısız.</p>`;
+        addMessage("jarvis", "Bağlantı hatası. İnternetini veya API key'ini kontrol et.");
+        console.error(e);
       }
     };
 
+    // Klavye kısayolları
     document.addEventListener("keypress", e => {
       if (e.key.toLowerCase() === "j") startListening();
+    });
+
+    document.getElementById("pass").addEventListener("keypress", e => {
+      if (e.key === "Enter") login();
     });
   </script>
 </body>
